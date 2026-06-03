@@ -1,0 +1,347 @@
+/* =============================================
+   Discord Layout – Styles
+   ============================================= */
+
+/* CSS Variables */
+:root {
+  --dc-bg-primary: #1e1f22;
+  --dc-bg-secondary: #2b2d31;
+  --dc-bg-tertiary: #313338;
+  --dc-bg-sidebar: #2b2d31;
+  --dc-bg-server: #1e1f22;
+  --dc-accent: #5865f2;
+  --dc-accent-hover: #4752c4;
+  --dc-green: #23a55a;
+  --dc-text-normal: #dbdee1;
+  --dc-text-muted: #80848e;
+  --dc-text-header: #f2f3f5;
+  --dc-divider: #3f4147;
+  --dc-mention-bg: rgba(88, 101, 242, 0.15);
+  --dc-mention-bar: #5865f2;
+  --scrollbar-track: #2b2d31;
+  --scrollbar-thumb: #1e1f22;
+}
+
+/* Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Base */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Noto Sans', sans-serif;
+  background: var(--dc-bg-primary);
+  color: var(--dc-text-normal);
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #111214;
+}
+
+/* =============================================
+   Server List
+   ============================================= */
+
+.server-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    border-radius 0.2s,
+    background 0.15s,
+    transform 0.1s;
+  position: relative;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--dc-text-header);
+}
+
+.server-icon:hover,
+.server-icon.active {
+  border-radius: 16px;
+}
+
+.server-icon.active::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 40px;
+  background: white;
+  border-radius: 0 4px 4px 0;
+}
+
+.server-icon:hover::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 20px;
+  background: white;
+  border-radius: 0 4px 4px 0;
+}
+
+.server-pill {
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  background: white;
+  border-radius: 0 4px 4px 0;
+  transition: height 0.2s;
+}
+
+/* =============================================
+   Channel Sidebar
+   ============================================= */
+
+.channel-item {
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--dc-text-muted);
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition:
+    background 0.1s,
+    color 0.1s;
+  user-select: none;
+}
+
+.channel-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--dc-text-normal);
+}
+
+.channel-item.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--dc-text-header);
+}
+
+.channel-item .unread-badge {
+  margin-left: auto;
+  background: #ed4245;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 1px 5px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.category-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dc-text-muted);
+  padding: 16px 8px 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.category-header:hover {
+  color: var(--dc-text-normal);
+}
+
+/* =============================================
+   Messages
+   ============================================= */
+
+.mention-message {
+  background: var(--dc-mention-bg);
+  border-left: 3px solid var(--dc-mention-bar);
+  border-radius: 0 4px 4px 0;
+}
+
+.message-group:hover .message-timestamp {
+  opacity: 1;
+}
+
+.message-timestamp {
+  opacity: 0;
+  font-size: 11px;
+  color: var(--dc-text-muted);
+  transition: opacity 0.1s;
+}
+
+/* =============================================
+   Avatars & Status
+   ============================================= */
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.avatar:hover {
+  opacity: 0.85;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--dc-bg-sidebar);
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+}
+
+/* =============================================
+   Member List
+   ============================================= */
+
+.member-item {
+  padding: 6px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.member-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* =============================================
+   Chat Input
+   ============================================= */
+
+.chat-input {
+  background: #383a40;
+  border-radius: 8px;
+  color: var(--dc-text-normal);
+  border: none;
+  outline: none;
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-family: inherit;
+  resize: none;
+}
+
+.chat-input::placeholder {
+  color: var(--dc-text-muted);
+}
+
+/* =============================================
+   Tooltip
+   ============================================= */
+
+.tooltip {
+  position: absolute;
+  left: calc(100% + 16px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #111214;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.tooltip::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 6px solid transparent;
+  border-right-color: #111214;
+}
+
+/* =============================================
+   Animations
+   ============================================= */
+
+.voice-bar {
+  height: 3px;
+  background: var(--dc-green);
+  border-radius: 2px;
+  animation: voicePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes voicePulse {
+  0%,
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scaleY(2.2);
+    opacity: 0.7;
+  }
+}
+
+/* Vue transitions */
+.slide-enter-active,
+.slide-leave-active {
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  transform: translateX(-8px);
+  opacity: 0;
+}

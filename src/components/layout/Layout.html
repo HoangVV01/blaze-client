@@ -1,0 +1,628 @@
+<div id="app">
+    <discord-app></discord-app>
+    </div>
+    <script>
+      import PrimeVue from 'primevue/config';
+      import Dropdown from 'primevue/dropdown';
+      import ConversationList from '../conversations/ConversationList.vue';
+      import 'primevue/resources/themes/aura-dark-green/theme.css';
+      import 'primevue/resources/primevue.min.css';
+      import 'primeicons/primeicons.css';
+      const { createApp, ref, computed, nextTick, onMounted } = Vue
+
+      const App = {
+        name: 'DiscordApp',
+        components: { Dropdown, ConversationList },
+        template: `
+  <div style="display:flex;height:100vh;width:100vw;overflow:hidden;">
+
+    <!-- ...existing code... -->
+
+    <!-- SERVER LIST (PrimeVue Dropdown) -->
+    <div style="width:200px;min-width:200px;background:var(--dc-bg-server);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:8px;overflow-y:auto;position:relative;">
+      <Dropdown
+        v-model="activeServer"
+        :options="servers"
+        optionLabel="name"
+        optionValue="id"
+        placeholder="Select a server"
+        style="width:180px;margin-bottom:16px;"
+        :itemTemplate="serverOptionTemplate"
+      />
+      <!-- Add Server -->
+      <div class="server-icon" style="background:rgba(255,255,255,0.07);color:var(--dc-green);font-size:24px;font-weight:300;" @mouseenter="hoveredServer='add'" @mouseleave="hoveredServer=null" title="Add a Server" style="position:relative;">
+        +
+        <div v-if="hoveredServer==='add'" class="tooltip">Add a Server</div>
+      </div>
+    </div>
+
+    <!-- CHANNEL SIDEBAR -->
+    <div style="width:240px;min-width:240px;background:var(--dc-bg-sidebar);display:flex;flex-direction:column;">
+      <!-- Server Header -->
+      <div style="height:48px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--dc-divider);cursor:pointer;font-weight:700;font-size:15px;color:var(--dc-text-header);" @click="serverMenuOpen=!serverMenuOpen">
+        <span>{{ currentServer.name }}</span>
+        <span style="font-size:12px;color:var(--dc-text-muted);">{{ serverMenuOpen ? '▲' : '▼' }}</span>
+      </div>
+      <!-- Channels -->
+      <div style="flex:1;overflow-y:auto;padding:8px 8px 0;">
+        <div v-for="cat in currentServer.categories" :key="cat.id">
+          <div class="category-header" @click="cat.collapsed=!cat.collapsed">
+            <span style="font-size:9px;">{{ cat.collapsed ? '▶' : '▼' }}</span>
+            {{ cat.name }}
+          </div>
+          <transition name="slide">
+            <div v-if="!cat.collapsed">
+              <div v-for="ch in cat.channels" :key="ch.id"
+                class="channel-item"
+                :class="{active: activeChannel===ch.id}"
+                @click="selectChannel(ch)">
+                <span style="color:var(--dc-text-muted);font-size:18px;line-height:1;">{{ ch.icon }}</span>
+                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ch.name }}</span>
+                <span v-if="ch.unread" class="unread-badge">{{ ch.unread }}</span>
+              </div>
+            </div>
+          </transition>
+        </div>
+      </div>
+      <!-- User Panel -->
+      <div style="height:52px;background:#232428;padding:8px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--dc-divider);">
+        <div style="position:relative;cursor:pointer;" @click="selfMenuOpen=!selfMenuOpen">
+          <div class="avatar" style="background:#5865f2;width:32px;height:32px;font-size:12px;">ME</div>
+          <div class="status-dot" style="background:var(--dc-green);"></div>
+        </div>
+        <div style="flex:1;overflow:hidden;">
+          <div style="font-size:13px;font-weight:600;color:var(--dc-text-header);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">YourUsername</div>
+          <div style="font-size:11px;color:var(--dc-text-muted);">#0001</div>
+        </div>
+        <div style="display:flex;gap:4px;">
+          <button @click="muted=!muted" :title="muted?'Unmute':'Mute'" style="background:none;border:none;cursor:pointer;padding:4px;border-radius:4px;color:var(--dc-text-muted);font-size:16px;transition:background 0.1s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">{{ muted ? '🔇' : '🎙️' }}</button>
+          <button @click="deafened=!deafened" :title="deafened?'Undeafen':'Deafen'" style="background:none;border:none;cursor:pointer;padding:4px;border-radius:4px;color:var(--dc-text-muted);font-size:16px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">{{ deafened ? '🔕' : '🔊' }}</button>
+          <button title="Settings" style="background:none;border:none;cursor:pointer;padding:4px;border-radius:4px;color:var(--dc-text-muted);font-size:16px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">⚙️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN CHAT + HOME/DM SIDEBAR (right) -->
+    <div style="flex:1;display:flex;flex-direction:row;min-width:0;">
+      <div style="flex:1;display:flex;flex-direction:column;background:var(--dc-bg-tertiary);min-width:0;">
+      <!-- Channel Header -->
+      <div style="height:48px;padding:0 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--dc-divider);flex-shrink:0;">
+        <span style="font-size:20px;color:var(--dc-text-muted);">{{ currentChannel.icon }}</span>
+        <span style="font-weight:700;font-size:15px;color:var(--dc-text-header);">{{ currentChannel.name }}</span>
+        <div style="width:1px;height:20px;background:var(--dc-divider);margin:0 6px;"></div>
+        <span style="font-size:13px;color:var(--dc-text-muted);">{{ currentChannel.topic }}</span>
+        <div style="margin-left:auto;display:flex;gap:4px;">
+          <button @click="showMembers=!showMembers" :style="{background: showMembers ? 'rgba(255,255,255,0.1)' : 'none'}" style="border:none;cursor:pointer;padding:6px 8px;border-radius:4px;color:var(--dc-text-muted);font-size:16px;transition:background 0.1s;" title="Toggle Members">👥</button>
+          <button style="background:none;border:none;cursor:pointer;padding:6px 8px;border-radius:4px;color:var(--dc-text-muted);font-size:16px;" title="Search" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">🔍</button>
+          <button style="background:none;border:none;cursor:pointer;padding:6px 8px;border-radius:4px;color:var(--dc-text-muted);font-size:16px;" title="Inbox" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">📥</button>
+        </div>
+      </div>
+
+      <div style="flex:1;display:flex;min-height:0;">
+        <!-- Messages -->
+        <div ref="msgContainer" style="flex:1;overflow-y:auto;padding:16px 0 0;display:flex;flex-direction:column;min-width:0;">
+          <div v-for="(group, gi) in messageGroups" :key="gi" class="message-group" style="padding:4px 16px 4px;display:flex;gap:16px;position:relative;">
+            <div v-if="group.showAvatar">
+              <div class="avatar" :style="{background: group.authorColor}">{{ group.authorAbbr }}</div>
+            </div>
+            <div v-else style="width:40px;min-width:40px;display:flex;align-items:center;justify-content:flex-end;">
+              <span class="message-timestamp">{{ group.time }}</span>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div v-if="group.showAvatar" style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px;">
+                <span style="font-weight:600;font-size:15px;color:white;cursor:pointer;" :style="{color: group.authorColor}">{{ group.author }}</span>
+                <span style="font-size:11px;color:var(--dc-text-muted);">{{ group.time }}</span>
+              </div>
+              <div v-for="(msg, mi) in group.messages" :key="mi"
+                :class="{'mention-message': msg.mention}"
+                style="padding:2px 4px;border-radius:4px;font-size:15px;line-height:1.5;"
+                @mouseenter="hoveredMsg={gi,mi}" @mouseleave="hoveredMsg=null">
+                <span v-html="renderMessage(msg.content)"></span>
+                <span v-if="msg.edited" style="font-size:11px;color:var(--dc-text-muted);margin-left:4px;">(edited)</span>
+              </div>
+              <div v-if="group.reaction" style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap;">
+                <button v-for="r in group.reaction" :key="r.emoji"
+                  @click="r.count++"
+                  :style="{background: r.mine ? 'rgba(88,101,242,0.3)' : 'rgba(255,255,255,0.07)', border: r.mine ? '1px solid rgba(88,101,242,0.5)' : '1px solid transparent'}"
+                  style="border-radius:12px;padding:2px 8px;font-size:13px;cursor:pointer;color:var(--dc-text-normal);display:flex;align-items:center;gap:4px;">
+                  {{ r.emoji }} <span style="font-size:12px;">{{ r.count }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div style="height:32px;"></div>
+        </div>
+
+        <!-- Member List -->
+        <transition name="slide">
+          <div v-if="showMembers" style="width:240px;min-width:240px;background:var(--dc-bg-secondary);overflow-y:auto;padding:16px 8px;">
+            <div v-for="role in memberRoles" :key="role.name">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--dc-text-muted);padding:16px 8px 4px;">
+                {{ role.name }} — {{ role.members.length }}
+              </div>
+              <div v-for="m in role.members" :key="m.id" class="member-item">
+                <div style="position:relative;flex-shrink:0;">
+                  <div class="avatar" :style="{background: m.color, width:'32px', height:'32px', fontSize:'11px'}">{{ m.abbr }}</div>
+                  <div class="status-dot" :style="{background: statusColor(m.status)}"></div>
+                </div>
+                <div style="min-width:0;">
+                  <div style="font-size:14px;font-weight:500;color:var(--dc-text-normal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" :style="{color: m.roleColor}">{{ m.name }}</div>
+                  <div v-if="m.activity" style="font-size:11px;color:var(--dc-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ m.activity }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </div>
+
+      <!-- Chat Input -->
+      <div style="padding:0 16px 24px;flex-shrink:0;">
+        <div style="background:#383a40;border-radius:8px;display:flex;align-items:flex-end;gap:8px;padding:0 4px 0 16px;">
+          <button title="Attach File" style="background:none;border:none;cursor:pointer;color:var(--dc-text-muted);font-size:20px;padding:12px 4px;flex-shrink:0;opacity:0.8;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8">📎</button>
+          <textarea
+            v-model="chatInput"
+            @keydown.enter.exact.prevent="sendMessage"
+            :placeholder="'Message #' + currentChannel.name"
+            class="chat-input"
+            style="flex:1;background:transparent;min-height:44px;max-height:200px;line-height:1.5;"
+            rows="1"
+            @input="autoResize"
+            ref="inputArea"
+          ></textarea>
+          <div style="display:flex;align-items:center;gap:2px;padding:8px 4px;flex-shrink:0;">
+            <button title="GIF" style="background:none;border:none;cursor:pointer;color:var(--dc-text-muted);font-size:18px;padding:4px;border-radius:4px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">GIF</button>
+            <button title="Emoji" style="background:none;border:none;cursor:pointer;color:var(--dc-text-muted);font-size:20px;padding:4px;border-radius:4px;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='none'">😊</button>
+          </div>
+        </div>
+        <div style="margin-top:6px;font-size:12px;color:var(--dc-text-muted);padding:0 4px;">
+          <span style="color:var(--dc-text-header);font-weight:500;">Enter</span> to send &nbsp;•&nbsp; <span style="color:var(--dc-text-header);font-weight:500;">Shift + Enter</span> for new line
+        </div>
+      </div>
+      </div>
+      <!-- HOME/DM SIDEBAR (only on Home, right side) -->
+      <ConversationList v-if="activeServer === 'home'" />
+    </div>
+
+  </div>
+  `,
+
+        setup() {
+          const activeServer = ref('server1')
+          const activeChannel = ref('general')
+          const hoveredServer = ref(null)
+          const hoveredMsg = ref(null)
+          const showMembers = ref(true)
+          const serverMenuOpen = ref(false)
+          const selfMenuOpen = ref(false)
+          const muted = ref(false)
+          const deafened = ref(false)
+          const chatInput = ref('')
+          const msgContainer = ref(null)
+          const inputArea = ref(null)
+
+          const servers = ref([
+            { id: 'server1', name: 'Awesome Devs', abbr: 'AD', color: '#5865f2', unread: 3 },
+            { id: 'server2', name: 'Gaming Lounge', abbr: 'GL', color: '#ed4245', unread: null },
+            { id: 'server3', name: 'Design Club', abbr: 'DC', color: '#23a55a', unread: null },
+            { id: 'server4', name: 'Study Group', abbr: 'SG', color: '#f0b232', unread: 12 },
+            { id: 'server5', name: 'Night Owls', abbr: 'NO', color: '#9b59b6', unread: null },
+          ])
+
+          const serverData = ref({
+            server1: {
+              name: 'Awesome Devs',
+              categories: [
+                {
+                  id: 'info',
+                  name: 'Information',
+                  collapsed: false,
+                  channels: [
+                    {
+                      id: 'rules',
+                      name: 'rules',
+                      icon: '📋',
+                      topic: 'Server rules & guidelines',
+                      unread: null,
+                    },
+                    {
+                      id: 'announcements',
+                      name: 'announcements',
+                      icon: '📣',
+                      topic: 'Important updates',
+                      unread: null,
+                    },
+                  ],
+                },
+                {
+                  id: 'general',
+                  name: 'General',
+                  collapsed: false,
+                  channels: [
+                    {
+                      id: 'general',
+                      name: 'general',
+                      icon: '#',
+                      topic: 'Chat about anything!',
+                      unread: null,
+                    },
+                    {
+                      id: 'introductions',
+                      name: 'introductions',
+                      icon: '#',
+                      topic: 'Introduce yourself',
+                      unread: 2,
+                    },
+                    {
+                      id: 'memes',
+                      name: 'memes',
+                      icon: '#',
+                      topic: 'Post your memes here',
+                      unread: 5,
+                    },
+                  ],
+                },
+                {
+                  id: 'dev',
+                  name: 'Development',
+                  collapsed: false,
+                  channels: [
+                    {
+                      id: 'frontend',
+                      name: 'frontend',
+                      icon: '⚡',
+                      topic: 'Frontend dev discussion',
+                      unread: 1,
+                    },
+                    {
+                      id: 'backend',
+                      name: 'backend',
+                      icon: '⚙️',
+                      topic: 'Backend dev discussion',
+                      unread: null,
+                    },
+                    {
+                      id: 'code-review',
+                      name: 'code-review',
+                      icon: '🔍',
+                      topic: 'Share your code for review',
+                      unread: null,
+                    },
+                  ],
+                },
+                {
+                  id: 'voice',
+                  name: 'Voice Channels',
+                  collapsed: false,
+                  channels: [
+                    {
+                      id: 'vc-general',
+                      name: 'General',
+                      icon: '🔊',
+                      topic: 'General voice chat',
+                      unread: null,
+                    },
+                    {
+                      id: 'vc-music',
+                      name: 'Music 🎵',
+                      icon: '🔊',
+                      topic: 'Chill music vibes',
+                      unread: null,
+                    },
+                  ],
+                },
+              ],
+            },
+          })
+
+          const currentServer = computed(
+            () => serverData.value[activeServer.value] || serverData.value['server1'],
+          )
+
+          const allChannels = computed(() => {
+            return currentServer.value.categories.flatMap((c) => c.channels)
+          })
+
+          const currentChannel = computed(() => {
+            return (
+              allChannels.value.find((c) => c.id === activeChannel.value) || allChannels.value[0]
+            )
+          })
+
+          const messages = ref({
+            general: [
+              {
+                author: 'ByteWizard',
+                authorAbbr: 'BW',
+                authorColor: '#5865f2',
+                time: 'Today at 9:12 AM',
+                content: "Good morning everyone! 👋 How's the coding going?",
+                mention: false,
+              },
+              {
+                author: 'ByteWizard',
+                authorAbbr: 'BW',
+                authorColor: '#5865f2',
+                time: 'Today at 9:12 AM',
+                content: 'I just pushed a new PR for the auth module if anyone wants to review',
+                mention: false,
+                reaction: [
+                  { emoji: '👀', count: 3, mine: false },
+                  { emoji: '🔥', count: 2, mine: true },
+                ],
+              },
+              {
+                author: 'PixelCraft',
+                authorAbbr: 'PC',
+                authorColor: '#23a55a',
+                time: 'Today at 9:15 AM',
+                content: 'Morning! Just finished my coffee, ready to debug some gnarly CSS 😅',
+                mention: false,
+              },
+              {
+                author: 'NullPointer',
+                authorAbbr: 'NP',
+                authorColor: '#f0b232',
+                time: 'Today at 9:18 AM',
+                content:
+                  'Hey @YourUsername can you check the deployment configs? Something looks off',
+                mention: true,
+                edited: true,
+              },
+              {
+                author: 'YourUsername',
+                authorAbbr: 'ME',
+                authorColor: '#5865f2',
+                time: 'Today at 9:20 AM',
+                content: 'On it! Give me 5 minutes',
+                mention: false,
+              },
+              {
+                author: 'PixelCraft',
+                authorAbbr: 'PC',
+                authorColor: '#23a55a',
+                time: 'Today at 9:22 AM',
+                content: 'Also, reminder that we have a team standup in 30 minutes 🕐',
+                mention: false,
+                reaction: [{ emoji: '✅', count: 4, mine: true }],
+              },
+              {
+                author: 'ByteWizard',
+                authorAbbr: 'BW',
+                authorColor: '#5865f2',
+                time: 'Today at 9:25 AM',
+                content: 'Already on the call, the link is in #announcements if anyone needs it',
+                mention: false,
+              },
+              {
+                author: 'TerminalGuru',
+                authorAbbr: 'TG',
+                authorColor: '#ed4245',
+                time: 'Today at 9:30 AM',
+                content: 'Just a heads up – the staging server is down for maintenance until 11am',
+                mention: false,
+              },
+              {
+                author: 'TerminalGuru',
+                authorAbbr: 'TG',
+                authorColor: '#ed4245',
+                time: 'Today at 9:30 AM',
+                content: 'Deploy to prod should still work fine',
+                mention: false,
+              },
+              {
+                author: 'NullPointer',
+                authorAbbr: 'NP',
+                authorColor: '#f0b232',
+                time: 'Today at 9:33 AM',
+                content: 'Thanks for the heads up! 🙏',
+                mention: false,
+                reaction: [{ emoji: '❤️', count: 1, mine: false }],
+              },
+            ],
+          })
+
+          const messageGroups = computed(() => {
+            const channelMsgs = messages.value[activeChannel.value] || []
+            const groups = []
+            channelMsgs.forEach((msg, i) => {
+              const prev = channelMsgs[i - 1]
+              const showAvatar = !prev || prev.author !== msg.author || msg.reaction
+              if (showAvatar) {
+                groups.push({
+                  author: msg.author,
+                  authorAbbr: msg.authorAbbr,
+                  authorColor: msg.authorColor,
+                  time: msg.time,
+                  showAvatar: true,
+                  messages: [msg],
+                  reaction: msg.reaction,
+                })
+              } else {
+                const last = groups[groups.length - 1]
+                last.messages.push(msg)
+                if (!last.reaction && msg.reaction) last.reaction = msg.reaction
+              }
+            })
+            return groups
+          })
+
+          const memberRoles = ref([
+            {
+              name: 'Online',
+              members: [
+                {
+                  id: 1,
+                  name: 'ByteWizard',
+                  abbr: 'BW',
+                  color: '#5865f2',
+                  roleColor: '#5865f2',
+                  status: 'online',
+                  activity: 'Editing main.ts',
+                },
+                {
+                  id: 2,
+                  name: 'PixelCraft',
+                  abbr: 'PC',
+                  color: '#23a55a',
+                  roleColor: '#23a55a',
+                  status: 'online',
+                  activity: 'Playing Figma',
+                },
+                {
+                  id: 3,
+                  name: 'TerminalGuru',
+                  abbr: 'TG',
+                  color: '#ed4245',
+                  roleColor: null,
+                  status: 'dnd',
+                  activity: null,
+                },
+                {
+                  id: 4,
+                  name: 'NullPointer',
+                  abbr: 'NP',
+                  color: '#f0b232',
+                  roleColor: null,
+                  status: 'idle',
+                  activity: 'Away',
+                },
+                {
+                  id: 5,
+                  name: 'YourUsername',
+                  abbr: 'ME',
+                  color: '#5865f2',
+                  roleColor: null,
+                  status: 'online',
+                  activity: null,
+                },
+              ],
+            },
+            {
+              name: 'Offline',
+              members: [
+                {
+                  id: 6,
+                  name: 'CryptoNerd',
+                  abbr: 'CN',
+                  color: '#747f8d',
+                  roleColor: null,
+                  status: 'offline',
+                  activity: null,
+                },
+                {
+                  id: 7,
+                  name: 'DevOpsQueen',
+                  abbr: 'DQ',
+                  color: '#747f8d',
+                  roleColor: null,
+                  status: 'offline',
+                  activity: null,
+                },
+              ],
+            },
+          ])
+
+          function statusColor(s) {
+            return (
+              { online: '#23a55a', idle: '#f0b232', dnd: '#ed4245', offline: '#747f8d' }[s] ||
+              '#747f8d'
+            )
+          }
+
+          function selectChannel(ch) {
+            activeChannel.value = ch.id
+            ch.unread = null
+            nextTick(() => scrollToBottom())
+          }
+
+          function scrollToBottom() {
+            if (msgContainer.value) {
+              msgContainer.value.scrollTop = msgContainer.value.scrollHeight
+            }
+          }
+
+          function renderMessage(content) {
+            return content
+              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+              .replace(
+                /`([^`]+)`/g,
+                '<code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:13px;">$1</code>',
+              )
+              .replace(
+                /@(\w+)/g,
+                '<span style="background:rgba(88,101,242,0.3);color:#c9cdfb;border-radius:3px;padding:0 2px;cursor:pointer;">@$1</span>',
+              )
+              .replace(/#(\w+)/g, '<span style="color:#00aff4;cursor:pointer;">#$1</span>')
+          }
+
+          function sendMessage() {
+            const text = chatInput.value.trim()
+            if (!text) return
+            const ch = activeChannel.value
+            if (!messages.value[ch]) messages.value[ch] = []
+            messages.value[ch].push({
+              author: 'YourUsername',
+              authorAbbr: 'ME',
+              authorColor: '#5865f2',
+              time:
+                'Today at ' +
+                new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              content: text,
+              mention: false,
+            })
+            chatInput.value = ''
+            if (inputArea.value) inputArea.value.style.height = 'auto'
+            nextTick(() => scrollToBottom())
+          }
+
+          function autoResize(e) {
+            const el = e.target
+            el.style.height = 'auto'
+            el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+          }
+
+          onMounted(() => scrollToBottom())
+
+          // PrimeVue Dropdown item template for server list
+          const serverOptionTemplate = (option) => {
+            if (!option) return '';
+            return `<span style="display:flex;align-items:center;gap:8px;">
+              <span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:${option.color};text-align:center;color:white;font-size:12px;">${option.abbr}</span>
+              <span>${option.name}</span>
+              ${option.unread ? `<span style='background:#ed4245;color:white;border-radius:8px;padding:0 6px;font-size:10px;margin-left:6px;'>${option.unread}</span>` : ''}
+            </span>`;
+          };
+          return {
+            activeServer,
+            activeChannel,
+            hoveredServer,
+            hoveredMsg,
+            showMembers,
+            serverMenuOpen,
+            selfMenuOpen,
+            muted,
+            deafened,
+            chatInput,
+            msgContainer,
+            inputArea,
+            servers,
+            currentServer,
+            currentChannel,
+            messageGroups,
+            memberRoles,
+            statusColor,
+            selectChannel,
+            renderMessage,
+            sendMessage,
+            autoResize,
+            serverOptionTemplate,
+          }
+        },
+      }
+
+      const app = createApp({ components: { 'discord-app': App } });
+      app.use(PrimeVue);
+      app.component('Dropdown', Dropdown);
+      app.mount('#app');
+    </script>
+</body>
