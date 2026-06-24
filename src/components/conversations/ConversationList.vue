@@ -66,7 +66,7 @@ const getUserData = (): {
   username: string
   email: string
   initials: string
-  status: 'online' | 'idle' | 'dnd' | 'offline'
+  status: 'ONLINE' | 'OFFLINE' | 'AWAY' | 'BUSY'
 } => {
   const userStr = localStorage.getItem('user')
   if (userStr) {
@@ -83,7 +83,7 @@ const getUserData = (): {
               .toUpperCase()
               .slice(0, 2)
           : 'U',
-        status: 'online',
+        status: 'ONLINE',
       }
     } catch (error) {
       console.error('Failed to parse user data:', error)
@@ -93,7 +93,7 @@ const getUserData = (): {
     username: 'User',
     email: 'user@example.com',
     initials: 'U',
-    status: 'online',
+    status: 'ONLINE',
   }
 }
 
@@ -101,7 +101,7 @@ const currentUser = ref<{
   username: string
   email: string
   initials: string
-  status: 'online' | 'idle' | 'dnd' | 'offline'
+  status: 'ONLINE' | 'OFFLINE' | 'AWAY' | 'BUSY'
 }>(getUserData())
 
 const props = defineProps<{

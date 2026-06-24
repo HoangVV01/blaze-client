@@ -17,7 +17,7 @@ export interface User {
   username: string
   name?: string
   avatar?: string
-  status?: 'online' | 'idle' | 'dnd' | 'offline'
+  status?: 'ONLINE' | 'OFFLINE' | 'AWAY' | 'BUSY'
   initials?: string
   createdAt: string
   updatedAt: string
@@ -40,4 +40,13 @@ export interface ErrorResponse {
   message: string
   error?: string
   statusCode?: number
+}
+
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  token: string
+  newPassword: string
 }

@@ -41,6 +41,10 @@
         <font-awesome-icon icon="exclamation-circle" /> {{ error }}
       </div>
 
+      <div class="forgot-password-link">
+        <p><router-link to="/forgot-password">Forgot your password?</router-link></p>
+      </div>
+
       <div class="register-link">
         <p>Don't have an account? <router-link to="/register">Sign up here</router-link></p>
       </div>
@@ -228,11 +232,28 @@ const handleLogin = async () => {
   font-size: 0.9rem;
 }
 
+.forgot-password-link {
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 5px;
+}
+
+.forgot-password-link a {
+  color: #667eea;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.forgot-password-link a:hover {
+  text-decoration: underline;
+}
+
 .register-link {
   text-align: center;
   color: #666;
   font-size: 0.9rem;
-  margin-top: 20px;
+  margin-top: 15px;
 }
 
 .register-link a {

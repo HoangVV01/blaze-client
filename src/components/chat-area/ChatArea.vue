@@ -59,43 +59,38 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, watch, computed } from 'vue'
 import MessageGroup from '../shared/MessageGroup.vue'
-import { MessageType } from '../../api/messages'
-import type { MessageDTO } from '../../api/messages'
-import { getMessages } from '../../api/messages'
-import {
-  connectWebSocket,
-  subscribeToConversation,
-  unsubscribeFromConversation,
-  subscribeToTyping,
-  unsubscribeFromTyping,
-  isWebSocketConnected,
-  sendWebSocketMessage,
-  sendTypingIndicator,
-} from '../../api/websocket'
-import type { TypingIndicator } from '../../api/websocket'
+import { getChannelMessages } from '../../api/messages'
+import { connectWebSocket, isWebSocketConnected, getStompClient } from '../../api/websocket'
+import type { Client } from '@stomp/stompjs'
 
 interface Props {
   activeChannelId?: number | null
+  channels?: Array<{ id: number; name: string; description?: string }>
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  activeChannelId: null,
+  channels: () => [],
+})
 
-const messages = ref<MessageDTO[]>([])
+// Derive active channel info from props
+const activeChannel = computed(() => {
+  return props.channels.find((ch) => ch.id === props.activeChannelId) || null
+})
+
+// WebSocket references
+let stompClient: Client | null = null
+let messageSubscription: any = null
+let typingSubscription: any = null
+
+const messages = ref<any[]>([])
 const chatInput = ref('')
 const inputArea = ref<HTMLTextAreaElement | null>(null)
 const chatMessagesContainer = ref<HTMLDivElement | null>(null)
 const typingUsers = ref<Set<string>>(new Set())
 let typingTimeout: NodeJS.Timeout | null = null
-let currentListenerId = ''
-
-// Get active channel info (would typically come from API or store)
-const activeChannel = ref({
-  id: props.activeChannelId || 1,
-  name: 'general',
-  description: 'Chat about anything!',
-})
 
 // Function to scroll to bottom of chat messages
 const scrollToBottom = () => {
@@ -106,93 +101,110 @@ const scrollToBottom = () => {
   })
 }
 
-// Fetch initial messages
-const fetchMessages = async (conversationId: number) => {
+// Fetch channel messages
+const fetchMessages = async (channelId: number) => {
   try {
-    messages.value = await getMessages(conversationId)
+    messages.value = await getChannelMessages(channelId)
     scrollToBottom()
   } catch (error) {
-    console.error('Failed to fetch messages:', error)
+    console.error('Failed to fetch channel messages:', error)
     messages.value = []
   }
 }
 
-// Connect to WebSocket on mount
-onMounted(async () => {
+// Setup WebSocket subscription for a channel
+const setupChannelWebSocket = async (channelId: number) => {
   try {
-    await connectWebSocket()
-    if (props.activeChannelId) {
-      await fetchMessages(props.activeChannelId)
-      setupWebSocketListener(props.activeChannelId)
+    if (!isWebSocketConnected()) {
+      await connectWebSocket()
     }
-    // Scroll to bottom on mount
-    scrollToBottom()
-  } catch (error) {
-    console.error('Failed to connect to WebSocket:', error)
-  }
-})
 
-// Setup WebSocket listener
-const setupWebSocketListener = (conversationId: number) => {
-  const listenerId = `chat-area-${conversationId}`
-  currentListenerId = listenerId
+    stompClient = getStompClient()
+    if (!stompClient) return
 
-  // Subscribe to messages
-  subscribeToConversation(conversationId, listenerId, (message: MessageDTO) => {
-    if (!messages.value.some((m) => m.id === message.id)) {
-      messages.value.push(message)
-      scrollToBottom()
+    // Subscribe to channel messages topic
+    const msgTopic = `/topic/channels/${channelId}/messages`
+    if (messageSubscription) {
+      messageSubscription.unsubscribe()
     }
-  })
-
-  // Subscribe to typing indicators
-  subscribeToTyping(conversationId, listenerId, (indicator: TypingIndicator) => {
-    if (indicator.isTyping) {
-      typingUsers.value.add(indicator.userName)
-      if (typingTimeout) {
-        clearTimeout(typingTimeout)
+    messageSubscription = stompClient.subscribe(msgTopic, (message: any) => {
+      try {
+        const msg = JSON.parse(message.body)
+        if (!messages.value.some((m) => m.id === msg.id)) {
+          messages.value.push(msg)
+          scrollToBottom()
+        }
+      } catch (e) {
+        console.error('Error parsing channel message:', e)
       }
-      // Clear typing indicator after 3 seconds of inactivity
-      typingTimeout = setTimeout(() => {
-        typingUsers.value.clear()
-      }, 3000)
-    } else {
-      typingUsers.value.delete(indicator.userName)
+    })
+
+    // Subscribe to channel typing topic
+    const typingTopic = `/topic/channels/${channelId}/typing`
+    if (typingSubscription) {
+      typingSubscription.unsubscribe()
     }
-  })
+    typingSubscription = stompClient.subscribe(typingTopic, (message: any) => {
+      try {
+        const indicator = JSON.parse(message.body)
+        if (indicator.isTyping) {
+          typingUsers.value.add(indicator.userName)
+          if (typingTimeout) clearTimeout(typingTimeout)
+          typingTimeout = setTimeout(() => {
+            typingUsers.value.clear()
+          }, 3000)
+        } else {
+          typingUsers.value.delete(indicator.userName)
+        }
+      } catch (e) {
+        console.error('Error parsing typing indicator:', e)
+      }
+    })
+  } catch (error) {
+    console.error('Failed to setup channel WebSocket:', error)
+  }
 }
 
-// Remove listener on unmount
-onUnmounted(() => {
-  if (currentListenerId) {
-    unsubscribeFromConversation(currentListenerId)
-    unsubscribeFromTyping(currentListenerId)
+// Cleanup WebSocket subscriptions
+const cleanupWebSocket = () => {
+  if (messageSubscription) {
+    messageSubscription.unsubscribe()
+    messageSubscription = null
+  }
+  if (typingSubscription) {
+    typingSubscription.unsubscribe()
+    typingSubscription = null
   }
   if (typingTimeout) {
     clearTimeout(typingTimeout)
+    typingTimeout = null
   }
+}
+
+onMounted(async () => {
+  if (props.activeChannelId) {
+    await fetchMessages(props.activeChannelId)
+    await setupChannelWebSocket(props.activeChannelId)
+  }
+  scrollToBottom()
+})
+
+onUnmounted(() => {
+  cleanupWebSocket()
 })
 
 // Watch for active channel changes
 watch(
   () => props.activeChannelId,
   async (newId, oldId) => {
-    // Remove old listener
-    if (oldId) {
-      const oldListenerId = `chat-area-${oldId}`
-      unsubscribeFromConversation(oldListenerId)
-      unsubscribeFromTyping(oldListenerId)
-    }
-
-    if (typingTimeout) {
-      clearTimeout(typingTimeout)
-    }
+    if (oldId === newId) return
+    cleanupWebSocket()
 
     if (newId) {
       messages.value = []
       typingUsers.value.clear()
       await fetchMessages(newId)
-      setupWebSocketListener(newId)
+      await setupChannelWebSocket(newId)
     } else {
       messages.value = []
       typingUsers.value.clear()
@@ -204,25 +216,26 @@ function sendMessage() {
   const text = chatInput.value.trim()
   if (!text || !props.activeChannelId) return
 
-  // Send message via WebSocket
-  const message = {
-    content: text,
-    messageType: MessageType.TEXT,
+  if (stompClient) {
+    const destination = `/app/channels/${props.activeChannelId}/send`
+    stompClient.publish({
+      destination,
+      body: JSON.stringify({ content: text, messageType: 'TEXT' }),
+    })
   }
 
-  sendWebSocketMessage(props.activeChannelId, message)
   chatInput.value = ''
   if (inputArea.value) inputArea.value.style.height = 'auto'
   nextTick(() => autoResize())
-  // Scroll to bottom after sending message
   scrollToBottom()
 }
 
-// Handle input events (both auto resize and typing indicator)
 function handleInput() {
   autoResize()
-  if (chatInput.value.trim().length > 0 && props.activeChannelId) {
-    sendTypingIndicator(props.activeChannelId, true)
+  if (chatInput.value.trim().length > 0 && props.activeChannelId && stompClient) {
+    stompClient.publish({
+      destination: `/app/channels/${props.activeChannelId}/typing`,
+    })
   }
 }
 

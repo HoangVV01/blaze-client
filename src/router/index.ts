@@ -3,6 +3,8 @@ import ConversationsView from '../components/conversations/ConversationsView.vue
 import ChannelsView from '../components/ChannelsView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
+import ForgotPasswordView from '../views/ForgotPasswordView.vue'
+import ResetPasswordView from '../views/ResetPasswordView.vue'
 import Layout from '../components/layout/Layout.vue'
 import { isAuthenticated } from '../api/auth'
 
@@ -21,6 +23,22 @@ const router = createRouter({
       path: '/register',
       name: 'register',
       component: RegisterView,
+      meta: {
+        requiresAuth: false,
+      },
+    },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: ForgotPasswordView,
+      meta: {
+        requiresAuth: false,
+      },
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: ResetPasswordView,
       meta: {
         requiresAuth: false,
       },
@@ -54,7 +72,14 @@ router.beforeEach((to, from, next) => {
 
   if (requiresAuth && !authenticated) {
     next('/login')
-  } else if (!requiresAuth && authenticated && (to.path === '/login' || to.path === '/register')) {
+  } else if (
+    !requiresAuth &&
+    authenticated &&
+    (to.path === '/login' ||
+      to.path === '/register' ||
+      to.path === '/forgot-password' ||
+      to.path === '/reset-password')
+  ) {
     next('/')
   } else {
     next()

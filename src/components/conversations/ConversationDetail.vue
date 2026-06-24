@@ -134,7 +134,7 @@ const displayConversation = computed(() => {
           .slice(0, 2)
       : 'U',
     color: '#5865f2', // You can replace with a color generator if needed
-    status: 'online' as const, // Replace with real status if available
+    status: 'ONLINE' as const, // Replace with real status if available
   }
 })
 

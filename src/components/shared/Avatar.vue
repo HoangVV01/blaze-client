@@ -14,7 +14,7 @@ interface Props {
   initials?: string
   size?: number
   backgroundColor?: string
-  status?: 'online' | 'idle' | 'dnd' | 'offline'
+  status?: 'ONLINE' | 'OFFLINE' | 'AWAY' | 'BUSY'
   clickable?: boolean
 }
 
@@ -22,7 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
   initials: 'User',
   size: 40,
   backgroundColor: '#5865f2',
-  status: 'online',
+  status: 'ONLINE',
   clickable: false,
 })
 
@@ -39,10 +39,10 @@ const avatarStyle = computed(() => ({
 
 const statusStyle = computed(() => {
   const statusColors: Record<string, string> = {
-    online: '#23a55a',
-    idle: '#f0b232',
-    dnd: '#ed4245',
-    offline: '#747f8d',
+    ONLINE: '#23a55a',
+    AWAY: '#f0b232',
+    BUSY: '#ed4245',
+    OFFLINE: '#747f8d',
   }
   return {
     background: statusColors[props.status],
@@ -80,6 +80,6 @@ const handleClick = () => {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 3px solid #232428;
+  border: 3px solid var(--dc-bg-sidebar);
 }
 </style>

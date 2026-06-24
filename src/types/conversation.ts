@@ -12,7 +12,7 @@ export interface Conversation {
   // Additional properties for UI
   initials?: string
   color?: string
-  status?: 'online' | 'idle' | 'dnd' | 'offline'
+  status?: 'ONLINE' | 'OFFLINE' | 'AWAY' | 'BUSY'
   lastMessage?: string
   timestamp?: string
   unread?: boolean

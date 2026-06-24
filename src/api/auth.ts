@@ -15,7 +15,12 @@ export const getCurrentUserId = (): string | null => {
   }
 }
 // Authentication API service
-import type { LoginRequest, LoginResponse } from '../types/auth'
+import type {
+  LoginRequest,
+  LoginResponse,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+} from '../types/auth'
 
 // Default API base URL from localStorage or fallback
 export const getApiBaseUrl = (): string => {
@@ -145,6 +150,46 @@ export const fetchCurrentUserProfile = async (): Promise<any> => {
   localStorage.setItem('user', JSON.stringify(userData))
 
   return userData
+}
+
+// Forgot password API call
+export const forgotPassword = async (data: ForgotPasswordRequest): Promise<{ message: string }> => {
+  const baseUrl = getApiBaseUrl()
+  const response = await fetch(`${baseUrl}/api/auth/forgot-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(
+      errorData.message || `Forgot password request failed with status: ${response.status}`,
+    )
+  }
+
+  return await response.json()
+}
+
+// Reset password API call
+export const resetPassword = async (data: ResetPasswordRequest): Promise<{ message: string }> => {
+  const baseUrl = getApiBaseUrl()
+  const response = await fetch(`${baseUrl}/api/auth/reset-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.message || `Reset password failed with status: ${response.status}`)
+  }
+
+  return await response.json()
 }
 
 // Logout API call

@@ -25,7 +25,7 @@ const currentUser = ref<User>(
     id: '1',
     username: 'Guest',
     email: 'guest@example.com',
-    status: 'online' as const,
+    status: 'ONLINE' as const,
   },
 )
 

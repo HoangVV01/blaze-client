@@ -1,7 +1,16 @@
 <template>
   <div class="channels-view">
-    <ChannelSidebar :serverName="currentServer?.name" @channelSelect="handleChannelSelect" />
-    <ChatArea :activeChannelId="activeChannelId" />
+    <ChannelSidebar
+      :serverName="currentServer?.name"
+      :serverId="currentServer?.id ?? null"
+      :channels="(currentServer?.channels as Channel[]) || []"
+      @channelSelect="handleChannelSelect"
+      @channelCreated="handleChannelCreated"
+    />
+    <ChatArea
+      :activeChannelId="activeChannelId"
+      :channels="(currentServer?.channels as Channel[]) || []"
+    />
     <MembersSidebar />
   </div>
 </template>
@@ -13,7 +22,7 @@ import ChannelSidebar from './channel-sidebar/ChannelSidebar.vue'
 import ChatArea from './chat-area/ChatArea.vue'
 import MembersSidebar from './members-sidebar/MembersSidebar.vue'
 import { getServerById } from '../api/servers'
-import type { Server } from '../api/servers'
+import type { Server, Channel } from '../api/servers'
 
 const route = useRoute()
 const currentServer = ref<Server | null>(null)
@@ -34,6 +43,12 @@ const fetchServerData = async (serverId: string) => {
 const handleChannelSelect = (channelId: number) => {
   activeChannelId.value = channelId
   console.log('Selected channel ID:', channelId)
+}
+
+const handleChannelCreated = async () => {
+  if (route.params.serverId) {
+    await fetchServerData(route.params.serverId as string)
+  }
 }
 
 onMounted(async () => {

@@ -67,6 +67,32 @@ export async function getMessages(conversationId: number): Promise<MessageDTO[]>
   return res.data
 }
 
+export async function getChannelMessages(channelId: number): Promise<MessageDTO[]> {
+  const token = getToken()
+  if (!token) throw new Error('No JWT token found')
+  const res = await axios.get(`/channels/${channelId}/messages`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+  return res.data
+}
+
+export async function sendChannelMessage(channelId: number, content: string): Promise<MessageDTO> {
+  const token = getToken()
+  if (!token) throw new Error('No JWT token found')
+  const res = await axios.post(
+    `/channels/${channelId}/messages`,
+    { content, messageType: MessageType.TEXT },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  )
+  return res.data
+}
+
 export async function sendMessage(req: SendMessageRequest): Promise<MessageDTO> {
   const token = getToken()
   if (!token) throw new Error('No JWT token found')

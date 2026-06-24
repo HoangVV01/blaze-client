@@ -113,6 +113,11 @@ export const isWebSocketConnected = (): boolean => {
   return stompClient !== null && stompClient.connected
 }
 
+// Get the STOMP client instance
+export const getStompClient = (): Client | null => {
+  return stompClient
+}
+
 // Subscribe to conversation messages
 export const subscribeToConversation = (
   conversationId: number,

@@ -5,11 +5,11 @@
         :initials="user.initials || getInitials(user.name || user.username)"
         :size="32"
         backgroundColor="#5865f2"
-        :status="user.status || 'online'"
+        :status="user.status || 'ONLINE'"
       />
     </div>
     <div class="user-info">
-      <div class="username">{{ user.name || user.username }}</div>
+      <div class="username">{{ user.username }}</div>
       <div class="user-email">{{ user.email }}</div>
     </div>
     <div class="user-controls">
@@ -73,7 +73,7 @@ const handleLogout = async () => {
     await logout()
     isDropdownOpen.value = false
     // Redirect to login page after logout
-    router.push('/')
+    router.push('/login')
   } catch (error) {
     console.error('Logout failed:', error)
   }
@@ -102,6 +102,8 @@ const getInitials = (name: string): string => {
   border-top: 1px solid var(--dc-divider);
   border-radius: 8px 8px 0 0;
   margin: 0 8px 0 8px;
+  min-width: 240px;
+  max-width: 240px;
 }
 
 .user-avatar {
